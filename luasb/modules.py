@@ -7,15 +7,22 @@ modules = [
     'https://raw.githubusercontent.com/philanc/plc/master/plc/base85.lua'
 ]
 
+modules_dir: str = ""
 
-def load_modules():
-    os.makedirs("lua_modules", exist_ok=True)
+
+def load_modules(basepath: str):
+    global modules_dir
+    modules_dir = basepath
+    os.makedirs(basepath, exist_ok=True)
     for module in modules:
+        path = os.path.basename(module)
+        path = os.path.join(basepath, path)
+
+        if os.path.exists(path):
+            continue
+
         response = httpx.get(module)
         response.raise_for_status()
-
-        path = os.path.basename(module)
-        path = f'lua_modules/{path}'
 
         with open(path, 'w') as f:
             f.write(response.text)

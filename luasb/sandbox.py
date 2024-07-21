@@ -1,27 +1,36 @@
-from base64 import b85decode
+import os
 import lupa  # type: ignore
 import json
 
 from lupa import LuaRuntime  # type: ignore
 from typing import Any, Optional
 
-_default_max_memory = 50 * 1024 * 1024  # 50mb
+from . import modules as lmods
+from ._exceptions import LuaRuntimeError
+
 
 default_allowed_modules = []
 default_blocked_globals = []
 
+variable = dict[str, Any] | str | bytes
 
-class LuaRuntimeError(RuntimeError):
-    def __init__(self, message: str) -> None:
-        self.message = message
-        super().__init__(message)
+_default_max_memory = 50 * 1024 * 1024  # 50mb
 
 
 class LuaSandbox:
-    def __init__(self, values: Optional[dict[str, dict[str, Any] | str]] = None, max_memory: int = _default_max_memory, allowed_modules: list[str] = default_allowed_modules, blocked_globals: list[str] = default_blocked_globals) -> None:
+    def __init__(
+        self,
+        values: Optional[dict[str, variable]] = None,
+        max_memory: int = _default_max_memory,
+        allowed_modules: list[str] = default_allowed_modules,
+        blocked_globals: list[str] = default_blocked_globals
+    ) -> None:
+        self.modules_path = f'{lmods.modules_dir}/?.lua'
         self.allowed_modules = allowed_modules
         self.blocked_globals = blocked_globals
-        self.result = None
+
+        self.allowed_modules.extend(
+            [os.path.splitext(x)[0] for x in os.listdir(lmods.modules_dir)])
 
         self.runtime = LuaRuntime(
             unpack_returned_tuples=True,
@@ -29,40 +38,41 @@ class LuaSandbox:
             attribute_filter=self._filter_attr_access
         )
 
-        self._old_require = self.runtime.globals().require
-
-        allowed_path = 'lua_modules/?.lua'
-        self.runtime.execute(
-            f"package.path = '{allowed_path};' .. package.path")
-        self.lua_globals = self.runtime.globals()
-
+        self.set_globals()
         if values:
-            self.runtime.execute('json = require("json")')
-            self.runtime.execute('base85 = require("base85")')
-            for item in values:
-                if isinstance(values[item], str):  # base85 encoded data
-                    self.lua_globals[item] = b85decode(
-                        values[item])  # type: ignore
-                else:
-                    self.runtime.execute(
-                        f'{item} = json.decode([[{json.dumps(values[item])}]]);')
-            # self.lua_globals.json = None
-            # self.lua_globals.base85 = None
-            # FIXME: Fix imports
+            self.inject_values(values)
 
-        for item in blocked_globals:
+    def set_globals(self):
+        self._old_require = self.runtime.globals().require
+        
+        self.runtime.execute(
+            f"package.path = '{self.modules_path};'")
+
+        for item in self.blocked_globals:
             code = f'{item} = nil'
             self.runtime.execute(code)
 
-        self.lua_globals.require = self._require
-
-        self.output: list[str] = []
-
-        # print_func: Callable[[Any], None] = lambda _: None
-
-        # self.lua_globals.print = print_func
+        self.lua_globals = self.runtime.globals()
 
         self.lua_globals.Result = {}
+        self.output = []
+        self.lua_globals.print = self._print
+        self.lua_globals.require = self._require
+
+
+    def inject_values(self, values: dict[str, variable]):
+        self.runtime.execute('json = require("json")')
+        self.runtime.execute('base85 = require("base85")')
+
+        for name, value in values.items():
+            if isinstance(value, str) or isinstance(value, bytes):
+                self.lua_globals[name] = value
+            else:
+                code = f'{name} = json.decode([[{json.dumps(value)}]]);'
+                self.runtime.execute(code)
+
+        self.lua_globals.json = None
+        self.lua_globals.base85 = None
 
     def execute(self, code: str):
         try:
@@ -96,3 +106,6 @@ class LuaSandbox:
                 python_dict[key] = value
 
         return python_dict
+
+    def _print(*args):
+        pass
