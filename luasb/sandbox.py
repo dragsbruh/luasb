@@ -12,7 +12,7 @@ from ._exceptions import LuaRuntimeError
 default_allowed_modules = []
 default_blocked_globals = []
 
-variable = dict[str, Any] | str | bytes
+variable = dict[str, Any] | str
 
 _default_max_memory = 50 * 1024 * 1024  # 50mb
 
@@ -63,17 +63,15 @@ class LuaSandbox:
 
     def inject_values(self, values: dict[str, variable]):
         self.runtime.execute('json = require("json")')
-        self.runtime.execute('base85 = require("base85")')
 
         for name, value in values.items():
-            if isinstance(value, str) or isinstance(value, bytes):
+            if isinstance(value, str):
                 self.lua_globals[name] = value
             else:
                 code = f'{name} = json.decode([[{json.dumps(value)}]]);'
                 self.runtime.execute(code)
 
         self.lua_globals.json = None
-        self.lua_globals.base85 = None
 
     def execute(self, code: str):
         try:
