@@ -11,9 +11,11 @@ code = """
 Result.value = name
 
 json = require("json")
+print(name)
+print("hello world", "this is fun")
 """
 
 print("executing code")
 sb.execute(code)
 
-print(sb.Result['value'])
+print(sb.output)

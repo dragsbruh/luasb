@@ -44,7 +44,7 @@ class LuaSandbox:
 
     def set_globals(self):
         self._old_require = self.runtime.globals().require
-        
+
         self.runtime.execute(
             f"package.path = '{self.modules_path};'")
 
@@ -56,10 +56,9 @@ class LuaSandbox:
 
         self.lua_globals.Result = {}
         self.Result = {}
-        self.output = []
+        self.output: list[str] = []
         self.lua_globals.print = self._print
         self.lua_globals.require = self._require
-
 
     def inject_values(self, values: dict[str, variable]):
         self.runtime.execute('json = require("json")')
@@ -106,5 +105,6 @@ class LuaSandbox:
 
         return python_dict
 
-    def _print(*args):
-        pass
+    def _print(self, *args: str):  # type: ignore
+        sep = ' '
+        self.output.append(sep.join(args))
