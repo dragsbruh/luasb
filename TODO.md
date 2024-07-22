@@ -1,1 +1,2 @@
 - [x] Allow capturing of output
+- [x] Allow user customizations for extended allowed (built-in lua) modules

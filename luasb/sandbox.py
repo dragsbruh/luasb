@@ -8,9 +8,17 @@ from typing import Any, Optional
 from . import modules as lmods
 from ._exceptions import LuaRuntimeError
 
-
-default_allowed_modules = []
-default_blocked_globals = []
+default_blocked_globals = [
+    'require',
+    'package',
+    'io',
+    'os',
+    'debug',
+    'load',
+    'loadfile',
+    'dofile',
+    'loadstring',
+]
 
 variable = dict[str, Any] | str
 
@@ -22,15 +30,14 @@ class LuaSandbox:
         self,
         values: Optional[dict[str, variable]] = None,
         max_memory: int = _default_max_memory,
-        allowed_modules: list[str] = default_allowed_modules,
         blocked_globals: list[str] = default_blocked_globals
     ) -> None:
         self.modules_path = f'{lmods.modules_dir}/?.lua'
-        self.allowed_modules = allowed_modules
         self.blocked_globals = blocked_globals
 
-        self.allowed_modules.extend(
-            [os.path.splitext(x)[0] for x in os.listdir(lmods.modules_dir)])
+        self.allowed_modules: list[str] = [os.path.splitext(
+            x)[0] for x in os.listdir(lmods.modules_dir)]
+        self.allowed_modules.extend(["math", "utf8", "table"]) # TODO: Allow user customizations
 
         self.runtime = LuaRuntime(
             unpack_returned_tuples=True,
@@ -105,6 +112,6 @@ class LuaSandbox:
 
         return python_dict
 
-    def _print(self, *args: str):  # type: ignore
+    def _print(self, *args: Any):  # type: ignore
         sep = ' '
-        self.output.append(sep.join(args))
+        self.output.append(sep.join(str(arg) for arg in args))

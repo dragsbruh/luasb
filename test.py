@@ -8,11 +8,7 @@ sb = LuaSandbox({
 })
 
 code = """
-Result.value = name
-
-json = require("json")
-print(name)
-print("hello world", "this is fun")
+print("Hello world!")
 """
 
 print("executing code")
