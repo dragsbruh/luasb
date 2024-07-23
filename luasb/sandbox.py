@@ -3,7 +3,7 @@ import lupa  # type: ignore
 import json
 
 from lupa import LuaRuntime  # type: ignore
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 from . import modules as lmods
 from ._exceptions import LuaRuntimeError
@@ -30,7 +30,8 @@ class LuaSandbox:
         self,
         values: Optional[dict[str, variable]] = None,
         max_memory: int = _default_max_memory,
-        blocked_globals: list[str] = default_blocked_globals
+        blocked_globals: list[str] = default_blocked_globals,
+        print_fn: Optional[Callable[[str], None]] = None
     ) -> None:
         self.modules_path = f'{lmods.modules_dir}/?.lua'
         self.blocked_globals = blocked_globals
@@ -48,6 +49,8 @@ class LuaSandbox:
         self.set_globals()
         if values:
             self.inject_values(values)
+        
+        self.print_fn = print_fn
 
     def set_globals(self):
         self._old_require = self.runtime.globals().require
@@ -115,3 +118,5 @@ class LuaSandbox:
     def _print(self, *args: Any):  # type: ignore
         sep = ' '
         self.output.append(sep.join(str(arg) for arg in args))
+        if self.print_fn:
+            self.print_fn(sep.join(str(arg) for arg in args))
